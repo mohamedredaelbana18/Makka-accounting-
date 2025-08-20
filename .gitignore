@@ -1,10 +1,11 @@
-treasury/node_modules/
-treasury/.next/
-treasury/out/
-treasury/backups/
-treasury/.env
-treasury/.env.local
+node_modules/
+.next/
+out/
+.env
+.env.local
+backups/
 *.log
 *.tmp
 .DS_Store
 Thumbs.db
+
