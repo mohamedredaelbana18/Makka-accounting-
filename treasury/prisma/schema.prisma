@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  name             String
+  type             AccountType
+  parentAccountId  String? 
+  parent           Account?  @relation("AccountToParent", fields: [parentAccountId], references: [id])
+  children         Account[] @relation("AccountToParent")
+  cashbox          Cashbox?
+  journalLines     JournalLine[]
+  invoiceLines     InvoiceLine[]
+  projectPartners  ProjectPartner[]
+}
+
+enum AccountType {
+  asset
+  liability
+  equity
+  revenue
+  expense
+}
+
+model JournalEntry {
+  id              String        @id @default(cuid())
+  date            DateTime
+  ref             String?
+  description     String?
+  projectId       String?
+  createdAt       DateTime      @default(now())
+  createdBy       String
+  reversedEntryId String?
+  reversedEntry   JournalEntry? @relation("Reverse", fields: [reversedEntryId], references: [id])
+  reversing       JournalEntry[] @relation("Reverse")
+  lines           JournalLine[]
+
+  @@index([projectId, date])
+}
+
+model JournalLine {
+  id          String   @id @default(cuid())
+  entryId     String
+  accountId   String
+  debit       Decimal  @db.Decimal(18, 2)
+  credit      Decimal  @db.Decimal(18, 2)
+  projectId   String?
+  cashboxId   String?
+  clientId    String?
+  supplierId  String?
+  partnerId   String?
+  invoiceId   String?
+  phaseId     String?
+  materialId  String?
+
+  entry       JournalEntry @relation(fields: [entryId], references: [id])
+  account     Account      @relation(fields: [accountId], references: [id])
+  cashbox     Cashbox?     @relation(fields: [cashboxId], references: [id])
+
+  @@index([projectId, entryId])
+  @@index([cashboxId, entryId])
+  @@index([partnerId, projectId])
+}
+
+model Project {
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique
+  status     ProjectStatus
+  startDate  DateTime
+  endDate    DateTime?
+  budget     Decimal? @db.Decimal(18, 2)
+  phases     ProjectPhase[]
+  materials  ProjectMaterialMove[]
+  cashboxes  Cashbox[]
+  partners   ProjectPartner[]
+  invoices   Invoice[]
+  settlements Settlement[]
+  contractorContracts ContractorContract[]
+}
+
+enum ProjectStatus {
+  active
+  paused
+  closed
+}
+
+model ProjectPhase {
+  id         String   @id @default(cuid())
+  projectId  String
+  name       String
+  startDate  DateTime?
+  endDate    DateTime?
+  progressPct Int? 
+  project    Project  @relation(fields: [projectId], references: [id])
+}
+
+model Material {
+  id              String   @id @default(cuid())
+  name            String
+  unit            String
+  defaultUnitCost Decimal? @db.Decimal(18, 2)
+  moves           ProjectMaterialMove[]
+}
+
+model ProjectMaterialMove {
+  id         String   @id @default(cuid())
+  projectId  String
+  materialId String
+  type       MaterialMoveType
+  qty        Decimal @db.Decimal(18, 3)
+  unitCost   Decimal @db.Decimal(18, 2)
+  date       DateTime
+  phaseId    String?
+  project    Project  @relation(fields: [projectId], references: [id])
+  material   Material @relation(fields: [materialId], references: [id])
+}
+
+enum MaterialMoveType {
+  in
+  out
+  adjust
+}
+
+model Client {
+  id     String  @id @default(cuid())
+  name   String
+  phone  String?
+  taxId  String?
+  note   String?
+}
+
+model Supplier {
+  id     String  @id @default(cuid())
+  name   String
+  phone  String?
+  taxId  String?
+  note   String?
+}
+
+model Partner {
+  id     String  @id @default(cuid())
+  name   String
+  phone  String?
+  note   String?
+  projectPartners ProjectPartner[]
+  fromSettlementLines SettlementLine[] @relation("FromPartner")
+  toSettlementLines   SettlementLine[] @relation("ToPartner")
+}
+
+model ProjectPartner {
+  id               String   @id @default(cuid())
+  projectId        String
+  partnerId        String
+  sharePct         Decimal? @db.Decimal(5, 2)
+  walletAccountId  String   @unique
+  previousCarry    Decimal  @default(0) @db.Decimal(18, 2)
+  project          Project  @relation(fields: [projectId], references: [id])
+  partner          Partner  @relation(fields: [partnerId], references: [id])
+  walletAccount    Account  @relation(fields: [walletAccountId], references: [id])
+
+  @@unique([projectId, partnerId], name: "projectId_partnerId")
+}
+
+model Cashbox {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  accountId String   @unique
+  projectId String?
+  account   Account  @relation(fields: [accountId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id])
+  lines     JournalLine[]
+}
+
+model Invoice {
+  id        String    @id @default(cuid())
+  projectId String
+  type      InvoiceType
+  number    String
+  date      DateTime
+  dueDate   DateTime?
+  total     Decimal   @db.Decimal(18, 2)
+  status    InvoiceStatus @default(draft)
+  project   Project   @relation(fields: [projectId], references: [id])
+  lines     InvoiceLine[]
+}
+
+enum InvoiceType {
+  customer
+  supplier
+  contractor
+}
+
+enum InvoiceStatus {
+  draft
+  posted
+  paid
+  partial
+}
+
+model InvoiceLine {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  description String
+  materialId String?
+  qty        Decimal  @db.Decimal(18, 3)
+  unitPrice  Decimal  @db.Decimal(18, 2)
+  accountId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  account    Account  @relation(fields: [accountId], references: [id])
+}
+
+model Settlement {
+  id         String   @id @default(cuid())
+  projectId  String
+  date       DateTime
+  note       String?
+  project    Project  @relation(fields: [projectId], references: [id])
+  lines      SettlementLine[]
+}
+
+model SettlementLine {
+  id             String   @id @default(cuid())
+  settlementId   String
+  fromPartnerId  String
+  toPartnerId    String
+  amount         Decimal  @db.Decimal(18, 2)
+  settlement     Settlement @relation(fields: [settlementId], references: [id])
+  fromPartner    Partner   @relation("FromPartner", fields: [fromPartnerId], references: [id])
+  toPartner      Partner   @relation("ToPartner", fields: [toPartnerId], references: [id])
+}
+
+model Backup {
+  id         String   @id @default(cuid())
+  runAt      DateTime @default(now())
+  location   BackupLocation
+  pathOrDriveId String
+  sizeBytes  Int?
+  status     BackupStatus
+  message    String?
+}
+
+enum BackupLocation {
+  onedrive
+  gdrive
+  local
+}
+
+enum BackupStatus {
+  ok
+  failed
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+}
+
+// Contractors extension
+model Contractor {
+  id     String  @id @default(cuid())
+  name   String
+  phone  String?
+  taxId  String?
+  note   String?
+  contracts ContractorContract[]
+}
+
+model ContractorContract {
+  id             String   @id @default(cuid())
+  contractorId   String
+  projectId      String
+  contractNumber String
+  date           DateTime
+  value          Decimal  @db.Decimal(18, 2)
+  description    String?
+  contractor     Contractor @relation(fields: [contractorId], references: [id])
+  project        Project    @relation(fields: [projectId], references: [id])
+}
+
