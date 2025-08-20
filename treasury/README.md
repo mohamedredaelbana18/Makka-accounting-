@@ -1,4 +1,5 @@
-<<<<<<< HEAD
+نظام الخزينة المحاسبي – Next.js 14 + Prisma + PostgreSQL (RTL)
+
 تشغيل محلي
 
 1) إعداد:
@@ -6,8 +7,8 @@
 - ثبّت: `npm i`
 
 2) قاعدة البيانات:
-- استخدم PostgreSQL محليًا أو Docker (مثال docker مذكور في الوصف)
-- حدث `DATABASE_URL` إذا لزم
+- استخدم PostgreSQL محليًا أو Docker
+- حدّث `DATABASE_URL` في `.env` إذا لزم
 
 3) تهيئة:
 - `npm run prisma:migrate`
@@ -18,9 +19,3 @@
 - `/` لوحة التحكم
 - `/projects`, `/cashboxes`, `/invoices`, `/partners`, `/partners/settlement`, `/clients`, `/suppliers`, `/backup`
 - `/api/tests/acceptance` لاختبار توازن القيود
-
-Treasure
-
-=======
-# Makka-accounting-
->>>>>>> treasury-clean

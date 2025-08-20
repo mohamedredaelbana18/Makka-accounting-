@@ -1,0 +1,10 @@
+treasury/node_modules/
+treasury/.next/
+treasury/out/
+treasury/backups/
+treasury/.env
+treasury/.env.local
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
